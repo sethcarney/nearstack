@@ -251,7 +251,11 @@ export class AppComponent implements OnInit {
     this.messages = next;
     this.isSending = true;
     try {
-      const reply = await this.ai.chat(next, { systemPrompt: this.buildSystemPrompt() });
+      const systemPrompt = this.buildSystemPrompt();
+      const apiMessages: Message[] = systemPrompt
+        ? [{ role: 'system', content: systemPrompt }, ...next]
+        : next;
+      const reply = await this.ai.chat(apiMessages);
       this.messages = [...next, { role: 'assistant', content: reply }];
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Chat failed';
