@@ -38,7 +38,7 @@ describe('scaffold', () => {
   });
 
   for (const framework of ['react', 'sveltekit', 'vue', 'angular'] as const) {
-    it(`scaffolds ${framework} with tailwind and todo+ai experience`, async () => {
+    it(`scaffolds ${framework} with tailwind and notes+ai experience`, async () => {
       promptsMock.mockResolvedValueOnce({ framework });
 
       await scaffold(`${framework}-app`);
@@ -70,7 +70,7 @@ describe('scaffold', () => {
       }
 
       const source = sourceChunks.join('\n');
-      expect(source).toContain('todo');
+      expect(source).toContain('note');
       expect(source).toContain('ai');
       expect(source).toContain('systemprompt');
     });
