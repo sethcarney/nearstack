@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useLiveQuery } from '@nearstack-dev/react';
 import { NoteModel, type Note } from './models/Note';
 import { Sidebar } from './components/Sidebar';
@@ -68,6 +68,33 @@ function App() {
     input.click();
   };
 
+  const createNoteFromAI = useCallback(async (args: { title: string; content: string; tags?: string[] }) => {
+    const note = await NoteModel.table().insert({
+      title: args.title,
+      content: args.content,
+      tags: args.tags || [],
+      pinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    setActiveNoteId(note.id);
+    return note;
+  }, []);
+
+  const updateNoteFromAI = useCallback(async (args: { id: string; title?: string; content?: string; tags?: string[] }) => {
+    const { id, ...updates } = args;
+    const updateData: Partial<Note> = { ...updates, updatedAt: Date.now() };
+    const note = await NoteModel.table().update(id, updateData);
+    return note;
+  }, []);
+
+  const deleteNoteFromAI = useCallback(async (args: { id: string }) => {
+    await NoteModel.table().delete(args.id);
+    if (activeNoteId === args.id) {
+      setActiveNoteId(null);
+    }
+  }, [activeNoteId]);
+
   const allTags = [...new Set(notes.flatMap(n => n.tags))];
 
   return (
@@ -131,7 +158,12 @@ function App() {
 
         {showAI && (
           <aside className="w-96 border-l border-neutral-200">
-            <AIPanel notes={notes} />
+            <AIPanel
+              notes={notes}
+              onCreateNote={createNoteFromAI}
+              onUpdateNote={updateNoteFromAI}
+              onDeleteNote={deleteNoteFromAI}
+            />
           </aside>
         )}
       </div>
