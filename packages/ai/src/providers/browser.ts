@@ -316,7 +316,7 @@ export class BrowserProvider implements BrowserProviderInterface {
 
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || "";
-        const done = chunk.choices[0]?.finish_reason !== null;
+        const done = chunk.choices[0]?.finish_reason === 'stop' || chunk.choices[0]?.finish_reason === 'length';
 
         yield {
           content,
