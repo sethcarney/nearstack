@@ -37,12 +37,15 @@ export function useModelSelector(instance: AI = defaultAI) {
       await instance.models.use(modelId);
       setSelectedModelId(null);
     } else {
-      // For available browser models, just track the selection without calling use()
+      // For available or errored browser models, just track the selection.
+      // The user triggers downloadModel() explicitly. Tracking selections
+      // for errored models is what enables the retry-from-error path.
       setSelectedModelId(modelId);
     }
   };
 
   const downloadModel = async (modelId: string) => {
+    if (isDownloading) return;
     setIsDownloading(true);
     try {
       await instance.models.download(modelId);

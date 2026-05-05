@@ -80,6 +80,11 @@ export class AppComponent implements OnInit {
     return this.models.find(m => m.id === this.selectedModel);
   }
 
+  get selectedModelError(): string | null {
+    const status = this.selectedModelInfo?.status;
+    return status?.state === 'error' ? status.message : null;
+  }
+
   async ngOnInit() {
     await this.refreshNotes();
     NoteModel.subscribe(() => void this.refreshNotes());
@@ -219,11 +224,17 @@ export class AppComponent implements OnInit {
   }
 
   async onModelSelect(modelId: string) {
+    if (this.isDownloading) return;
     this.selectedModel = modelId;
     const model = this.models.find(m => m.id === modelId);
     if (!model) return;
 
-    if (model.status.state === 'available') {
+    // 'error' state needs a fresh download too — otherwise a failed download
+    // leaves the model unusable until reload.
+    const needsDownload =
+      model.status.state === 'available' || model.status.state === 'error';
+
+    if (needsDownload) {
       this.isDownloading = true;
       this.downloadProgress = 0;
       const unsub = this.ai.subscribe(state => {
@@ -236,9 +247,16 @@ export class AppComponent implements OnInit {
       } finally {
         unsub();
         this.isDownloading = false;
+        this.models = this.ai.models.list();
       }
     }
-    await this.ai.models.use(modelId);
+
+    // Only activate if the model is now ready/cached. After a failed download
+    // we'd otherwise reach use() with status 'error' and throw.
+    const refreshed = this.ai.models.get(modelId);
+    if (refreshed?.status.state === 'cached' || refreshed?.status.state === 'ready') {
+      await this.ai.models.use(modelId);
+    }
     this.models = this.ai.models.list();
   }
 
