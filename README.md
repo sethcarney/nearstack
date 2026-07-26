@@ -241,6 +241,14 @@ pnpm lint          # Lint all packages
 pnpm format        # Format all packages
 ```
 
+The workspace is pinned to Node 22 LTS and the pnpm version in the root `packageManager` field. Enable it locally with `corepack enable`.
+
+## Dev container
+
+The repo ships a [dev container](.devcontainer/devcontainer.json) so contributors get the pinned toolchain without installing anything locally. Open the repo in VS Code and choose **Reopen in Container**, or use GitHub Codespaces.
+
+It pins Node 22 LTS, activates the pinned pnpm through corepack, runs `pnpm install -r` on create, and forwards the dev-server ports used by the CLI templates (5173 Vite, 4173 Vite preview, 4200 Angular) plus 11434 for Ollama.
+
 ## Contributing
 
 Contributions welcome. Whether it's fixing bugs, adding features, improving docs, or sharing what you've built—all contributions help make local-first development more accessible.
