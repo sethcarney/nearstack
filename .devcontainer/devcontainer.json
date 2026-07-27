@@ -2,8 +2,12 @@
   "name": "nearstack",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/git:1": {}
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
+  "mounts": [
+    "source=nearstack-claude-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
   "containerEnv": {
     "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
   },
