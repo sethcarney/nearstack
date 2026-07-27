@@ -253,7 +253,34 @@ It pins Node 22 LTS, activates the pinned pnpm through corepack, runs `pnpm inst
 
 The container installs [Claude Code](https://code.claude.com/docs/) through the official dev container feature, so `claude` is on the path (and the VS Code extension is installed) as soon as the container comes up. Run `claude` in the terminal and sign in once.
 
-Authentication, settings, and session history live in `~/.claude`, which is backed by a named Docker volume scoped to this dev container — so a **Rebuild Container** does not sign you out. The volume comes up root-owned on first create; `post-create.sh` chowns it to the `node` user. To wipe the stored credentials, remove the volume:
+Authentication, settings, and session history live in `~/.claude`, which is backed by a named Docker volume scoped to this dev container — so a **Rebuild Container** does not sign you out.
+
+Three settings have to agree for that to hold, all naming `remoteUser`'s home directory:
+
+| Setting | Value |
+|---------|-------|
+| `mounts` | named volume targeting `/home/node/.claude` |
+| `containerEnv.CLAUDE_CONFIG_DIR` | `/home/node/.claude` |
+| `remoteUser` | `node` |
+
+`CLAUDE_CONFIG_DIR` is the part that's easy to miss. Claude Code splits its state in two: `~/.claude/` holds settings, history, and backups, while `~/.claude.json` — which holds the OAuth session — sits *beside* that directory. Mounting a volume at `~/.claude` alone persists everything except the login. Setting `CLAUDE_CONFIG_DIR` moves `.claude.json` inside the directory so one volume covers all of it. If you change the base image, update all three together — a mismatch fails silently, with no error beyond a sign-in prompt on every rebuild.
+
+Verify it's working, from inside the container after signing in:
+
+```bash
+[ -f ~/.claude/.claude.json ] && echo "persisted OK"
+[ -f ~/.claude.json ]         && echo "BROKEN: CLAUDE_CONFIG_DIR not in effect"
+```
+
+If a container signed in before `CLAUDE_CONFIG_DIR` was set, Claude Code prints `Claude configuration file not found at: /home/node/.claude.json` on startup. The session is recoverable — the backup it names lives inside the volume. Rebuild, then restore it into the config directory:
+
+```bash
+cp ~/.claude/backups/.claude.json.backup.<timestamp> ~/.claude/.claude.json
+```
+
+Note the target is `~/.claude/.claude.json`, not the `~/.claude.json` path the message prints — that message is emitted before `CLAUDE_CONFIG_DIR` takes effect.
+
+The volume comes up root-owned on first create; `post-create.sh` chowns it to the `node` user. To wipe the stored credentials, remove the volume:
 
 ```bash
 docker volume ls --filter name=nearstack-claude-config   # find it

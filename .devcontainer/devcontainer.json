@@ -9,7 +9,8 @@
     "source=nearstack-claude-config-${devcontainerId},target=/home/node/.claude,type=volume"
   ],
   "containerEnv": {
-    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "waitFor": "postCreateCommand",
