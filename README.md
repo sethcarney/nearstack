@@ -241,6 +241,29 @@ pnpm lint          # Lint all packages
 pnpm format        # Format all packages
 ```
 
+The workspace is pinned to Node 22 LTS and the pnpm version in the root `packageManager` field. Enable it locally with `corepack enable`.
+
+## Dev container
+
+The repo ships a [dev container](.devcontainer/devcontainer.json) so contributors get the pinned toolchain without installing anything locally. Open the repo in VS Code and choose **Reopen in Container**, or use GitHub Codespaces.
+
+It pins Node 22 LTS, activates the pinned pnpm through corepack, runs `pnpm install -r` on create, and forwards the dev-server ports used by the CLI templates (5173 Vite, 4173 Vite preview, 4200 Angular) plus 11434 for Ollama.
+
+### Claude Code in the container
+
+The container installs [Claude Code](https://code.claude.com/docs/) through the official dev container feature, so `claude` is on the path (and the VS Code extension is installed) as soon as the container comes up. Run `claude` in the terminal and sign in once.
+
+Authentication, settings, and session history live in `~/.claude`, which is backed by a named Docker volume scoped to this dev container — so a **Rebuild Container** does not sign you out. The volume comes up root-owned on first create; `post-create.sh` chowns it to the `node` user. To wipe the stored credentials, remove the volume:
+
+```bash
+docker volume ls --filter name=nearstack-claude-config   # find it
+docker volume rm <name>
+```
+
+To share one sign-in across every project instead of re-authenticating per repo, drop the `-${devcontainerId}` suffix from the mount source in `devcontainer.json`. Note that any container using that volume can read the credentials in it.
+
+In GitHub Codespaces, store a token from `claude setup-token` as a [Codespaces secret](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-your-account-specific-secrets-for-github-codespaces) named `CLAUDE_CODE_OAUTH_TOKEN` to carry authentication across codespaces.
+
 ## Contributing
 
 Contributions welcome. Whether it's fixing bugs, adding features, improving docs, or sharing what you've built—all contributions help make local-first development more accessible.

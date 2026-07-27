@@ -14,6 +14,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Claude Code local state
+.claude/settings.local.json
+
 # Environment
 .env
 .env.local

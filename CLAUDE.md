@@ -17,6 +17,8 @@ pnpm lint          # eslint packages/*/src --ext .ts,.tsx
 pnpm format        # prettier --write on all package sources
 ```
 
+Node 22 LTS and the pnpm version in the root `packageManager` field are the supported toolchain; `.devcontainer/` provisions both and runs `pnpm install -r` on create.
+
 Per-package work uses pnpm filters:
 
 ```bash
