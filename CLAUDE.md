@@ -17,7 +17,7 @@ pnpm lint          # eslint packages/*/src --ext .ts,.tsx
 pnpm format        # prettier --write on all package sources
 ```
 
-Node 22 LTS and the pnpm version in the root `packageManager` field are the supported toolchain; `.devcontainer/` provisions both and runs `pnpm install -r` on create.
+Node 22 LTS and the pnpm version in the root `packageManager` field are the supported toolchain; `.devcontainer/` provisions both and runs `pnpm install -r` on create. The dev container also installs the Claude Code CLI and `mdm`, with all three features pinned by digest in `.devcontainer/devcontainer-lock.json`. Claude Code's config directory is relocated to a named volume via `CLAUDE_CONFIG_DIR` so the login survives rebuilds — the mount target, that env var, and `remoteUser`'s home must all stay equal to `/home/node/.claude`, and `scripts/check-devcontainer-auth.py` fails CI if they drift apart.
 
 Per-package work uses pnpm filters:
 
@@ -70,9 +70,14 @@ React is the first-class binding: `useLiveQuery(queryFn, deps, model)` re-runs t
 
 Each template scaffolds the same notes app (IndexedDB persistence, search, tags, AI chat) with Vite + Tailwind. When changing template behavior (e.g. AI system prompts, chat wiring), keep the four active templates (react, vue, angular, sveltekit) consistent — the CHANGELOG shows this is an explicit convention. The CLI scaffold tests (`packages/cli/src/__tests__/scaffold.test.ts`) assert on template contents, so template edits can require test updates.
 
+## CI and supply chain
+
+`.github/workflows/ci.yml` runs build, test, and lint on Node 22, plus the dev container auth guard. `.github/workflows/scorecard.yml` publishes an OpenSSF Scorecard on push to `main`, weekly, and whenever branch protection changes. Every action is pinned to a full commit SHA with the version in a trailing comment — Dependabot updates them, so keep the SHA and the comment in sync rather than reverting to a floating tag.
+
 ## Conventions
 
 - TypeScript strict mode, ES2020 target; each package extends `tsconfig.base.json`.
-- Prettier: single quotes, semicolons, 80-column width, 2-space tabs. ESLint: `eslint:recommended` + `@typescript-eslint/recommended` with no custom rules.
+- Prettier: single quotes, semicolons, 80-column width, 2-space tabs. Note that 19 source files predate this config and are not yet formatted, so `pnpm format` produces a large diff and `prettier --check` is not gated in CI.
+- ESLint: `eslint:recommended` + `@typescript-eslint/recommended`, plus two deliberate overrides — a leading underscore marks an intentionally unused binding, and `no-explicit-any` is a warning rather than an error because `Store<T = any>`, `Table<T = any>` and `Model<T = any>` are load-bearing generic defaults. `pnpm lint` must exit clean; warnings are tracked debt.
 - Cross-package dependencies inside the workspace use `workspace:*`; framework libs (`react`, `svelte`, `@mlc-ai/web-llm`) are peer dependencies of the packages that use them.
 - Tests live in `__tests__/` directories next to the code (`src/**/*.test.ts`).

@@ -1,0 +1,48 @@
+version: 2
+
+updates:
+  # One pnpm lockfile at the workspace root covers every package, so a single
+  # entry here updates all of packages/*.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # These ship as a matched set and must move together -- upgrading the
+      # plugin without the parser (or vice versa) breaks the lint run, so a
+      # split PR is red on arrival for reasons that have nothing to do with
+      # the change.
+      typescript-eslint:
+        patterns:
+          - '@typescript-eslint/*'
+      vitest:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+      # Everything else that is dev-only, batched to cut PR noise.
+      dev-dependencies:
+        dependency-type: development
+        exclude-patterns:
+          - '@typescript-eslint/*'
+          - 'vitest'
+          - '@vitest/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Sub-path actions from one repo (github/codeql-action/init,
+      # /analyze, /upload-sarif) are released together and must be bumped
+      # together, or the mismatched pair fails.
+      actions:
+        patterns:
+          - '*'
+
+  # Keeps the SHA pins in .devcontainer/devcontainer-lock.json current instead
+  # of silently rotting.
+  - package-ecosystem: devcontainers
+    directory: /
+    schedule:
+      interval: weekly

@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege by default. No job here writes to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to a full commit SHA rather than a tag: a tag is
+      # mutable and can be repointed at other code. Scorecard's
+      # Pinned-Dependencies check looks for exactly this.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Must precede setup-node so that `cache: pnpm` can find the binary.
+      # With no version input the action honours the root packageManager field.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm lint
+
+      # NOTE: `prettier --check` is deliberately NOT gated here yet. 19 source
+      # files predate the .prettierrc in this repo and would fail on arrival.
+      # Run `pnpm format`, commit the reformat on its own, then add:
+      #   - run: pnpm exec prettier --check "packages/*/src/**/*.{ts,tsx,json}"
+
+  devcontainer-guard:
+    name: Dev container auth guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Turns a silent failure loud: a ~/.claude volume without
+      # CLAUDE_CONFIG_DIR persists everything except the OAuth session, so
+      # Claude Code sign-in quietly stops surviving rebuilds. Stdlib Python 3.
+      - name: Check Claude Code auth persistence
+        run: python3 scripts/check-devcontainer-auth.py --require-feature

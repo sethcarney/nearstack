@@ -1,5 +1,9 @@
 # Nearstack
 
+[![CI](https://github.com/sethcarney/nearstack/actions/workflows/ci.yml/badge.svg)](https://github.com/sethcarney/nearstack/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sethcarney/nearstack/badge)](https://scorecard.dev/viewer/?uri=github.com/sethcarney/nearstack)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **The browser is the backend.**
 
 Nearstack is a local-first web framework that makes it possible to build full-stack applications entirely in the browser. No servers. No accounts. No API keys. Just open your app and everything works.
