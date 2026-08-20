@@ -48,7 +48,7 @@ jobs:
         run: pnpm test
 
   lint:
-    name: Lint
+    name: Lint and format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -71,10 +71,11 @@ jobs:
       - name: ESLint
         run: pnpm lint
 
-      # NOTE: `prettier --check` is deliberately NOT gated here yet. 19 source
-      # files predate the .prettierrc in this repo and would fail on arrival.
-      # Run `pnpm format`, commit the reformat on its own, then add:
-      #   - run: pnpm exec prettier --check "packages/*/src/**/*.{ts,tsx,json}"
+      # Kept in step with the `format` script in the root package.json -- if
+      # that glob changes, change this one too, or CI stops checking the files
+      # `pnpm format` writes.
+      - name: Prettier
+        run: pnpm exec prettier --check "packages/*/src/**/*.{ts,tsx,json}"
 
   devcontainer-guard:
     name: Dev container auth guard

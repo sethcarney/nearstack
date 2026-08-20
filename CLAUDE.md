@@ -77,7 +77,7 @@ Each template scaffolds the same notes app (IndexedDB persistence, search, tags,
 ## Conventions
 
 - TypeScript strict mode, ES2020 target; each package extends `tsconfig.base.json`.
-- Prettier: single quotes, semicolons, 80-column width, 2-space tabs. Note that 19 source files predate this config and are not yet formatted, so `pnpm format` produces a large diff and `prettier --check` is not gated in CI.
+- Prettier: single quotes, semicolons, 80-column width, 2-space tabs. `prettier --check` is gated in CI over the same glob as the root `format` script, so run `pnpm format` before pushing. The one-off reformat that brought the tree into line is listed in `.git-blame-ignore-revs`.
 - ESLint: `eslint:recommended` + `@typescript-eslint/recommended`, plus two deliberate overrides — a leading underscore marks an intentionally unused binding, and `no-explicit-any` is a warning rather than an error because `Store<T = any>`, `Table<T = any>` and `Model<T = any>` are load-bearing generic defaults. `pnpm lint` must exit clean; warnings are tracked debt.
 - Cross-package dependencies inside the workspace use `workspace:*`; framework libs (`react`, `svelte`, `@mlc-ai/web-llm`) are peer dependencies of the packages that use them.
 - Tests live in `__tests__/` directories next to the code (`src/**/*.test.ts`).
