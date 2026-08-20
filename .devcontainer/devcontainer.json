@@ -1,18 +1,48 @@
 {
   "name": "nearstack",
+
+  // Node 22 LTS on Debian bookworm -- matches the "engines" field in the root
+  // package.json and the toolchain the README documents. This image's default
+  // user is "node" with home /home/node, which the three auth settings below
+  // must agree with.
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+
+    // Installs the Claude Code CLI. The :1.0 tag pins the feature's install
+    // script, not the CLI release -- Claude Code auto-updates in the container.
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+
+    // mdm: markdown/skill management CLI. Note the doubled path segment -- the
+    // feature is published at ghcr.io/sethcarney/mdm/mdm; the similarly named
+    // ghcr.io/sethcarney/mdm is the collection index and is not a feature.
+    // The feature only puts the binary on PATH; anything that reads the repo
+    // runs from post-create.sh, after the workspace is mounted.
+    "ghcr.io/sethcarney/mdm/mdm:1": {}
   },
+
+  // The next three settings must all name the SAME directory, and that
+  // directory must be remoteUser's home. Every way of getting this wrong fails
+  // silently -- no error, just a sign-in prompt on every rebuild.
+  // scripts/check-devcontainer-auth.py guards this and runs in CI.
   "mounts": [
     "source=nearstack-claude-config-${devcontainerId},target=/home/node/.claude,type=volume"
   ],
+
   "containerEnv": {
+    // A volume on ~/.claude alone does NOT persist the login: the OAuth session
+    // lives in ~/.claude.json, BESIDE the directory rather than inside it.
+    // This relocates the whole config directory so the one volume covers it.
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
   },
+
+  "remoteUser": "node",
+
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "waitFor": "postCreateCommand",
+
   "forwardPorts": [5173, 4173, 4200, 11434],
   "portsAttributes": {
     "5173": {
@@ -32,6 +62,7 @@
       "onAutoForward": "silent"
     }
   },
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -47,6 +78,5 @@
         "typescript.tsdk": "node_modules/typescript/lib"
       }
     }
-  },
-  "remoteUser": "node"
+  }
 }
