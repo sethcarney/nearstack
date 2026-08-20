@@ -1,0 +1,40 @@
+version: 2
+
+updates:
+  # One pnpm lockfile at the workspace root covers every package, so a single
+  # entry here updates all of packages/*.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # These ship as a matched set. Upgrading the plugin without the parser
+      # (or vice versa) breaks the lint run, so a split PR arrives red for
+      # reasons that have nothing to do with the change in it.
+      typescript-eslint:
+        patterns:
+          - '@typescript-eslint/*'
+      vitest:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+      # Everything else dev-only, batched to cut PR noise.
+      dev-dependencies:
+        dependency-type: development
+        exclude-patterns:
+          - '@typescript-eslint/*'
+          - 'vitest'
+          - '@vitest/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Sub-path actions published from one repository (for example
+      # github/codeql-action/init and .../analyze) are released together and
+      # have to move together, or the mismatched pair fails.
+      actions:
+        patterns:
+          - '*'
