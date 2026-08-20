@@ -21,9 +21,7 @@ import { OllamaProvider } from './providers/ollama';
  * Normalize input to Message array.
  */
 function normalizeInput(input: string | Message[]): Message[] {
-  return typeof input === 'string'
-    ? [{ role: 'user', content: input }]
-    : input;
+  return typeof input === 'string' ? [{ role: 'user', content: input }] : input;
 }
 
 /**
@@ -32,7 +30,9 @@ function normalizeInput(input: string | Message[]): Message[] {
 function isBrowserProvider(
   provider: Provider
 ): provider is BrowserProviderInterface {
-  return 'downloadModel' in provider && typeof provider.downloadModel === 'function';
+  return (
+    'downloadModel' in provider && typeof provider.downloadModel === 'function'
+  );
 }
 
 /**
@@ -100,7 +100,10 @@ export class AI {
         this.stateManager.updateModelStatus(modelId, { state: 'cached' });
       } catch (error) {
         this.stateManager.setDownloading(null);
-        if (error instanceof AIError && error.code === AIErrorCode.DOWNLOAD_CANCELLED) {
+        if (
+          error instanceof AIError &&
+          error.code === AIErrorCode.DOWNLOAD_CANCELLED
+        ) {
           this.stateManager.updateModelStatus(modelId, { state: 'available' });
         } else {
           this.stateManager.updateModelStatus(modelId, {
@@ -493,9 +496,7 @@ export class AI {
     }
 
     // Then try any ready Ollama model (Ollama models are always "ready" when listed)
-    const ollamaModel = state.models.find(
-      (m) => m.provider === 'ollama'
-    );
+    const ollamaModel = state.models.find((m) => m.provider === 'ollama');
     if (ollamaModel) {
       this.stateManager.setActiveModel(ollamaModel.id);
       this.stateManager.setActiveProvider(ollamaModel.provider);
