@@ -82,7 +82,12 @@ export class AIError extends Error {
 
     // Maintains proper stack trace in V8 environments
     const ErrorWithCapture = Error as typeof Error & {
-      captureStackTrace?: (target: object, constructor?: Function) => void;
+      captureStackTrace?: (
+        target: object,
+        constructor?:
+          | ((...args: never[]) => unknown)
+          | (new (...args: never[]) => unknown)
+      ) => void;
     };
     if (typeof ErrorWithCapture.captureStackTrace === 'function') {
       ErrorWithCapture.captureStackTrace(this, AIError);

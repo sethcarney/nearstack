@@ -386,7 +386,7 @@ export class AI {
 
       // Initialize all providers
       const initPromises = Array.from(this.providerInstances.entries()).map(
-        ([id, provider]) => this.initializeProvider(provider)
+        ([, provider]) => this.initializeProvider(provider)
       );
       await Promise.all(initPromises);
 
@@ -517,7 +517,7 @@ export class AI {
     const state = this.stateManager.getState();
 
     // Use model from options or active model
-    let modelId = options?.model || state.activeModel;
+    const modelId = options?.model || state.activeModel;
 
     if (!modelId) {
       throw new AIError(

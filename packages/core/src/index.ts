@@ -1,6 +1,6 @@
 // IndexedDB runtime, defineModel(), base Store interface
 
-import type { BaseProvider, Message, StateListener, Unsubscribe } from './types.js';
+import type { StateListener, Unsubscribe } from './types.js';
 
 export type { Message, BaseProvider, StateListener, Unsubscribe } from './types.js';
 

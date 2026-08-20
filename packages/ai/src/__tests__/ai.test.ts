@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AI, createAI } from '../ai';
-import { AIError, AIErrorCode } from '../errors';
-import type { Provider, Message, ChatOptions, StreamChunk, ModelInfo } from '../types';
+import { AIErrorCode } from '../errors';
+import type { Provider, Message, StreamChunk, ModelInfo } from '../types';
 
 // Create a mock provider
 function createMockProvider(
