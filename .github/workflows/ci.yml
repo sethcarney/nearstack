@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # No `branches:` filter. Filtering pull_request by base branch means a PR
+  # stacked on another topic branch never runs CI at all, so the change is
+  # unverified until it is retargeted -- exactly when review is most useful.
   pull_request:
-    branches: [main]
 
 # Least privilege by default. No job here writes to the repository.
 permissions:
