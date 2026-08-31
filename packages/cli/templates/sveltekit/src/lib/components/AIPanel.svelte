@@ -16,6 +16,7 @@
   let downloadProgress = 0;
 
   $: selectedModelInfo = models.find(m => m.id === selectedModel);
+  $: selectedModelError = selectedModelInfo?.status.state === 'error' ? selectedModelInfo.status.message : null;
   $: needsSetup = !selectedModelInfo || (selectedModelInfo.status.state !== 'cached' && selectedModelInfo.status.state !== 'ready');
 
   function buildSystemPrompt(): string | undefined {
@@ -37,11 +38,17 @@
   }
 
   async function selectAndDownload() {
+    if (isDownloading) return;
     if (!selectedModel) return;
     const model = models.find(m => m.id === selectedModel);
     if (!model) return;
 
-    if (model.status.state === 'available') {
+    // 'error' state needs a fresh download too — otherwise a failed download
+    // leaves the model unusable until reload.
+    const needsDownload =
+      model.status.state === 'available' || model.status.state === 'error';
+
+    if (needsDownload) {
       isDownloading = true;
       downloadProgress = 0;
       const unsub = ai.subscribe(state => {
@@ -54,9 +61,16 @@
       } finally {
         unsub();
         isDownloading = false;
+        models = ai.models.list();
       }
     }
-    await ai.models.use(selectedModel);
+
+    // Only activate if the model is now ready/cached. After a failed download
+    // we'd otherwise reach use() with status 'error' and throw.
+    const refreshed = ai.models.get(selectedModel);
+    if (refreshed?.status.state === 'cached' || refreshed?.status.state === 'ready') {
+      await ai.models.use(selectedModel);
+    }
     models = ai.models.list();
   }
 
@@ -121,6 +135,18 @@
             <div class="h-full bg-black transition-all" style="width: {Math.round(downloadProgress * 100)}%"></div>
           </div>
           <p class="mt-1 text-xs text-neutral-500">Downloading {Math.round(downloadProgress * 100)}%</p>
+        </div>
+      {/if}
+      {#if selectedModelError}
+        <div class="mt-3 w-full">
+          <p class="text-xs text-red-600">{selectedModelError}</p>
+          <button
+            on:click={selectAndDownload}
+            disabled={isDownloading}
+            class="mt-2 w-full bg-black px-3 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+          >
+            Retry download
+          </button>
         </div>
       {/if}
     </div>

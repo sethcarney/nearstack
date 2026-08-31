@@ -44,6 +44,8 @@ export class AI {
   private providerInstances: Map<string, Provider> = new Map();
   private initPromise: Promise<void> | null = null;
   private downloadAbortController: AbortController | null = null;
+  private inFlightDownload: { modelId: string; promise: Promise<void> } | null =
+    null;
   private debug: boolean;
   private _ui: UIHelpers;
 
@@ -67,54 +69,36 @@ export class AI {
 
     /**
      * Download a model for browser inference.
+     *
+     * Concurrency rules:
+     * - Calling with the same modelId already in flight returns the existing
+     *   promise (idempotent — useful for double-clicks).
+     * - Calling with a different modelId while one is in flight rejects with
+     *   AIErrorCode.DOWNLOAD_IN_PROGRESS. Cancel the active download first
+     *   via models.cancelDownload() if you want to switch.
      */
-    download: async (modelId: string): Promise<void> => {
-      const model = this.models.get(modelId);
-      if (!model) {
-        throw new AIError(
-          AIErrorCode.MODEL_NOT_FOUND,
-          `Model ${modelId} not found`
-        );
-      }
-
-      const provider = this.providerInstances.get(model.provider);
-      if (!provider || !isBrowserProvider(provider)) {
-        throw new AIError(
-          AIErrorCode.PROVIDER_NOT_AVAILABLE,
-          `Provider ${model.provider} does not support model downloads`
-        );
-      }
-
-      this.downloadAbortController = new AbortController();
-
-      try {
-        await provider.downloadModel(modelId, (progress) => {
-          this.stateManager.setDownloading(modelId, progress);
-          this.stateManager.updateModelStatus(modelId, {
-            state: 'downloading',
-            progress,
-          });
-        });
-
-        this.stateManager.setDownloading(null);
-        this.stateManager.updateModelStatus(modelId, { state: 'cached' });
-      } catch (error) {
-        this.stateManager.setDownloading(null);
-        if (
-          error instanceof AIError &&
-          error.code === AIErrorCode.DOWNLOAD_CANCELLED
-        ) {
-          this.stateManager.updateModelStatus(modelId, { state: 'available' });
-        } else {
-          this.stateManager.updateModelStatus(modelId, {
-            state: 'error',
-            message: error instanceof Error ? error.message : 'Download failed',
-          });
+    download: (modelId: string): Promise<void> => {
+      if (this.inFlightDownload) {
+        if (this.inFlightDownload.modelId === modelId) {
+          return this.inFlightDownload.promise;
         }
-        throw error;
-      } finally {
-        this.downloadAbortController = null;
+        return Promise.reject(
+          new AIError(
+            AIErrorCode.DOWNLOAD_IN_PROGRESS,
+            `Cannot download ${modelId}: ${this.inFlightDownload.modelId} is already downloading`
+          )
+        );
       }
+
+      const promise = this.runDownload(modelId);
+      this.inFlightDownload = { modelId, promise };
+      const clear = () => {
+        if (this.inFlightDownload?.modelId === modelId) {
+          this.inFlightDownload = null;
+        }
+      };
+      promise.then(clear, clear);
+      return promise;
     },
 
     /**
@@ -131,6 +115,9 @@ export class AI {
 
       this.downloadAbortController?.abort();
       this.stateManager.setDownloading(null);
+      // Clear synchronously so a follow-up download() doesn't race the
+      // rejection microtask.
+      this.inFlightDownload = null;
     },
 
     /**
@@ -544,6 +531,59 @@ export class AI {
     }
 
     return { provider, model: modelId };
+  }
+
+  /**
+   * Execute a model download. Wrapped by models.download which enforces
+   * single-flight semantics.
+   */
+  private async runDownload(modelId: string): Promise<void> {
+    const model = this.models.get(modelId);
+    if (!model) {
+      throw new AIError(
+        AIErrorCode.MODEL_NOT_FOUND,
+        `Model ${modelId} not found`
+      );
+    }
+
+    const provider = this.providerInstances.get(model.provider);
+    if (!provider || !isBrowserProvider(provider)) {
+      throw new AIError(
+        AIErrorCode.PROVIDER_NOT_AVAILABLE,
+        `Provider ${model.provider} does not support model downloads`
+      );
+    }
+
+    this.downloadAbortController = new AbortController();
+
+    try {
+      await provider.downloadModel(modelId, (progress) => {
+        this.stateManager.setDownloading(modelId, progress);
+        this.stateManager.updateModelStatus(modelId, {
+          state: 'downloading',
+          progress,
+        });
+      });
+
+      this.stateManager.setDownloading(null);
+      this.stateManager.updateModelStatus(modelId, { state: 'cached' });
+    } catch (error) {
+      this.stateManager.setDownloading(null);
+      if (
+        error instanceof AIError &&
+        error.code === AIErrorCode.DOWNLOAD_CANCELLED
+      ) {
+        this.stateManager.updateModelStatus(modelId, { state: 'available' });
+      } else {
+        this.stateManager.updateModelStatus(modelId, {
+          state: 'error',
+          message: error instanceof Error ? error.message : 'Download failed',
+        });
+      }
+      throw error;
+    } finally {
+      this.downloadAbortController = null;
+    }
   }
 
   /**

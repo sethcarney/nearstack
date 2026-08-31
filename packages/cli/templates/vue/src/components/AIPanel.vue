@@ -16,6 +16,10 @@ const isDownloading = ref(false);
 const downloadProgress = ref(0);
 
 const selectedModelInfo = computed(() => models.value.find(m => m.id === selectedModel.value));
+const selectedModelError = computed(() => {
+  const status = selectedModelInfo.value?.status;
+  return status?.state === 'error' ? status.message : null;
+});
 const needsSetup = computed(() => {
   const m = selectedModelInfo.value;
   return !m || (m.status.state !== 'cached' && m.status.state !== 'ready');
@@ -40,11 +44,17 @@ function buildSystemPrompt(): string | undefined {
 }
 
 async function selectModelAndDownload() {
+  if (isDownloading.value) return;
   if (!selectedModel.value) return;
   const model = models.value.find(m => m.id === selectedModel.value);
   if (!model) return;
 
-  if (model.status.state === 'available') {
+  // 'error' state needs a fresh download too — otherwise a failed download
+  // leaves the model unusable until reload.
+  const needsDownload =
+    model.status.state === 'available' || model.status.state === 'error';
+
+  if (needsDownload) {
     isDownloading.value = true;
     downloadProgress.value = 0;
     const unsub = props.ai.subscribe(state => {
@@ -57,9 +67,16 @@ async function selectModelAndDownload() {
     } finally {
       unsub();
       isDownloading.value = false;
+      models.value = props.ai.models.list();
     }
   }
-  await props.ai.models.use(selectedModel.value);
+
+  // Only activate if the model is now ready/cached. After a failed download
+  // we'd otherwise reach use() with status 'error' and throw.
+  const refreshed = props.ai.models.get(selectedModel.value);
+  if (refreshed?.status.state === 'cached' || refreshed?.status.state === 'ready') {
+    await props.ai.models.use(selectedModel.value);
+  }
   models.value = props.ai.models.list();
 }
 
@@ -119,6 +136,16 @@ function clear() {
           <div class="h-full bg-black transition-all" :style="{ width: `${Math.round(downloadProgress * 100)}%` }" />
         </div>
         <p class="mt-1 text-xs text-neutral-500">Downloading {{ Math.round(downloadProgress * 100) }}%</p>
+      </div>
+      <div v-if="selectedModelError" class="mt-3 w-full">
+        <p class="text-xs text-red-600">{{ selectedModelError }}</p>
+        <button
+          @click="selectModelAndDownload"
+          :disabled="isDownloading"
+          class="mt-2 w-full bg-black px-3 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+        >
+          Retry download
+        </button>
       </div>
     </div>
 

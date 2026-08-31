@@ -16,6 +16,8 @@ export enum AIErrorCode {
   DOWNLOAD_FAILED = 'DOWNLOAD_FAILED',
   /** Download was cancelled by user */
   DOWNLOAD_CANCELLED = 'DOWNLOAD_CANCELLED',
+  /** A different model is already being downloaded */
+  DOWNLOAD_IN_PROGRESS = 'DOWNLOAD_IN_PROGRESS',
   /** Inference request failed */
   INFERENCE_FAILED = 'INFERENCE_FAILED',
   /** Request timed out */
@@ -47,6 +49,8 @@ const ERROR_MESSAGES: Record<AIErrorCode, string> = {
   [AIErrorCode.DOWNLOAD_FAILED]:
     'Model download failed. Check your network connection and try again.',
   [AIErrorCode.DOWNLOAD_CANCELLED]: 'Model download was cancelled.',
+  [AIErrorCode.DOWNLOAD_IN_PROGRESS]:
+    'A different model is already downloading. Wait for it to finish or cancel it before starting another download.',
   [AIErrorCode.INFERENCE_FAILED]:
     'Inference request failed. The model may have encountered an error.',
   [AIErrorCode.TIMEOUT]:
