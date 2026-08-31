@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AI, createAI } from '../ai';
-import { AIError, AIErrorCode } from '../errors';
+import { AIErrorCode } from '../errors';
 import type {
   Provider,
   BrowserProviderInterface,
   Message,
-  ChatOptions,
   StreamChunk,
   ModelInfo,
 } from '../types';

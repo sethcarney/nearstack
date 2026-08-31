@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StateManager, createInitialState } from '../manager';
-import type { AIState, ProviderStatus, ModelInfo } from '../../types';
+import type { ProviderStatus, ModelInfo } from '../../types';
 
 describe('StateManager', () => {
   let manager: StateManager;
