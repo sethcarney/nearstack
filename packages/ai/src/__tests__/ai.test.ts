@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AI, createAI } from '../ai';
 import { AIErrorCode } from '../errors';
-import type { Provider, Message, StreamChunk, ModelInfo } from '../types';
+import type {
+  Provider,
+  BrowserProviderInterface,
+  Message,
+  StreamChunk,
+  ModelInfo,
+} from '../types';
 
 // Create a mock provider
 function createMockProvider(
@@ -25,15 +31,70 @@ function createMockProvider(
   };
 }
 
-function createMockModel(id: string, provider: string): ModelInfo {
+function createMockModel(
+  id: string,
+  provider: string,
+  status: ModelInfo['status'] = { state: 'ready' }
+): ModelInfo {
   return {
     id,
     name: id,
     provider,
     size: 1000000,
     contextLength: 4096,
-    status: { state: 'ready' },
+    status,
   };
+}
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+/**
+ * Create a browser-style provider whose downloadModel resolution is
+ * controllable per-call. Tests can drive concurrency by leaving a deferred
+ * unresolved while issuing additional download() calls.
+ */
+function createMockBrowserProvider(
+  id: string,
+  models: ModelInfo[]
+): {
+  provider: BrowserProviderInterface;
+  pendingDownloads: Array<Deferred<void>>;
+} {
+  const pendingDownloads: Array<Deferred<void>> = [];
+  const provider: BrowserProviderInterface = {
+    id,
+    type: 'browser',
+    initialize: vi.fn().mockResolvedValue(undefined),
+    dispose: vi.fn().mockResolvedValue(undefined),
+    isAvailable: vi.fn().mockResolvedValue(true),
+    listModels: vi.fn().mockResolvedValue(models),
+    chat: vi.fn().mockResolvedValue('Mock response'),
+    stream: vi.fn().mockImplementation(async function* () {
+      yield { content: 'Mock', done: true, model: 'test', provider: id };
+    }),
+    downloadModel: vi.fn().mockImplementation(async () => {
+      const deferred = createDeferred<void>();
+      pendingDownloads.push(deferred);
+      return deferred.promise;
+    }),
+    deleteModel: vi.fn().mockResolvedValue(undefined),
+    cancelDownload: vi.fn(),
+  };
+  return { provider, pendingDownloads };
 }
 
 describe('AI', () => {
@@ -290,6 +351,71 @@ describe('AI', () => {
         await expect(ai.models.use('unknown')).rejects.toMatchObject({
           code: AIErrorCode.MODEL_NOT_FOUND,
         });
+      });
+    });
+
+    describe('download', () => {
+      it('returns the same promise for concurrent calls with the same modelId', async () => {
+        const { provider, pendingDownloads } = createMockBrowserProvider('browser', [
+          createMockModel('model-a', 'browser', { state: 'available' }),
+        ]);
+        const ai = new AI({ providers: [provider], autoInitialize: true });
+        await ai.ready();
+
+        const first = ai.models.download('model-a');
+        const second = ai.models.download('model-a');
+
+        expect(provider.downloadModel).toHaveBeenCalledTimes(1);
+        // Both callers should observe the same outcome; resolve the single
+        // in-flight download to settle them.
+        pendingDownloads[0].resolve();
+        await expect(Promise.all([first, second])).resolves.toBeDefined();
+        expect(ai.models.get('model-a')?.status.state).toBe('cached');
+      });
+
+      it('rejects a different modelId while one is in flight', async () => {
+        const { provider, pendingDownloads } = createMockBrowserProvider('browser', [
+          createMockModel('model-a', 'browser', { state: 'available' }),
+          createMockModel('model-b', 'browser', { state: 'available' }),
+        ]);
+        const ai = new AI({ providers: [provider], autoInitialize: true });
+        await ai.ready();
+
+        const first = ai.models.download('model-a');
+
+        await expect(ai.models.download('model-b')).rejects.toMatchObject({
+          code: AIErrorCode.DOWNLOAD_IN_PROGRESS,
+        });
+        // The second download must not have invoked the provider.
+        expect(provider.downloadModel).toHaveBeenCalledTimes(1);
+        expect(provider.downloadModel).toHaveBeenCalledWith(
+          'model-a',
+          expect.any(Function)
+        );
+
+        pendingDownloads[0].resolve();
+        await first;
+      });
+
+      it('allows a fresh download after a previous download fails', async () => {
+        const { provider, pendingDownloads } = createMockBrowserProvider('browser', [
+          createMockModel('model-a', 'browser', { state: 'available' }),
+        ]);
+        const ai = new AI({ providers: [provider], autoInitialize: true });
+        await ai.ready();
+
+        const first = ai.models.download('model-a');
+        pendingDownloads[0].reject(new Error('network down'));
+        await expect(first).rejects.toThrow('network down');
+        expect(ai.models.get('model-a')?.status.state).toBe('error');
+
+        // User retries — the second call must reach the provider, not be
+        // blocked by stale in-flight state.
+        const second = ai.models.download('model-a');
+        expect(provider.downloadModel).toHaveBeenCalledTimes(2);
+        pendingDownloads[1].resolve();
+        await second;
+        expect(ai.models.get('model-a')?.status.state).toBe('cached');
       });
     });
 

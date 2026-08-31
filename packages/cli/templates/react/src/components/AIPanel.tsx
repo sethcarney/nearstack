@@ -284,7 +284,16 @@ export function AIPanel({ notes, onCreateNote, onUpdateNote, onDeleteNote }: AIP
           )}
 
           {selectedModel?.status?.state === 'error' && (
-            <p className="mt-2 text-xs text-red-600">{selectedModel.status.message}</p>
+            <div className="mt-3 w-full">
+              <p className="text-xs text-red-600">{selectedModel.status.message}</p>
+              <button
+                onClick={() => void downloadModel(selectedModel.id)}
+                disabled={isDownloading}
+                className="mt-2 w-full bg-black px-3 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+              >
+                Retry download
+              </button>
+            </div>
           )}
         </div>
       ) : (

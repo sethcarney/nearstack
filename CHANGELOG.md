@@ -20,3 +20,8 @@ The project did not previously include a changelog; the entries below summarize 
 - React template `@mlc-ai/web-llm` dependency updated from `^0.2.79` to `^0.2.80` (`880ec30`).
 - Angular template assets configuration updated to avoid missing default asset path issues in generated projects (`880ec30`).
 - CLI TypeScript config now excludes test files from compilation (`1731787`).
+
+### Fixed
+- `ai.models.download()` now enforces single-flight semantics: a duplicate call for the same model returns the in-flight promise, and a call for a different model rejects with `AIErrorCode.DOWNLOAD_IN_PROGRESS` instead of racing shared state ([#14](https://github.com/GhostScientist/nearstack/issues/14)).
+- React, Vue, SvelteKit, and Angular templates now offer a Retry action when a model download fails, so users can recover without reloading the app ([#13](https://github.com/GhostScientist/nearstack/issues/13)).
+- Template model-selection handlers now treat the `error` state like `available` and re-download instead of falling through to `models.use()` and rejecting ([#12](https://github.com/GhostScientist/nearstack/issues/12)).
